@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <link rel="stylesheet" href="style.css">
+    <script src="https://kit.fontawesome.com/f91ffb7c10.js" crossorigin="anonymous"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>LEVEL 1</h1>
+        <h2 id="question" class="question audiowide-regular"></h2>
+        <div class="option-group">
+            <div id="aCont" class="options">A.<button id="a" class="buttons audiowide-regular"><p></p></button></div>
+            <div id="bCont" class="options">B.<button id="b" class="buttons audiowide-regular"><p></p></button></div>
+            <div id="cCont" class="options">C.<button id="c" class="buttons audiowide-regular"><p></p></button></div>
+            <div id="dCont" class="options">D.<button id="d" class="buttons audiowide-regular"><p></p></button></div>
+        </div>
+        <div class="status">
+            <button id="info" class="info-btn">
+                <i class="fa-solid fa-circle-info fa-2xl setColor"></i>
+                <div id="infoBox" class="info-box">
+                    <div class="info-content audiowide-regular">
+                        <div class="guide-title">
+                            <p class="guide">Here are the game rules.</p>
+                            <p class="">X</p>
+                        </div>
+                        <ul>
+                            <li>1 You have 10 questions to answer.</li>
+                            <li>2 Each correct answer gives you 10 points.</li>
+                            <li>3 You win if you get 70 or more points, otherwise you lose</li>
+                            <li>4 Enjoy the game!</li>
+                        </ul>
+                    </div>
+                </div>
+            </button>
+            <p id="score"></p>
+        </div>
+        <div id="endPage" class="endPage">
+            <h1 id="end"></h1>
+            <div class="next">
+                <button id="retry">Retry</button>
+                <a href="level_2.html" id="continue" class="next-level">Next Level</a>
+            </div>
+        </div>
+        <div id="window" class="window"></div>
+    </div>
+    <script>
+        const q = document.getElementById('question');
+        const a = document.getElementById('a');
+        const b = document.getElementById('b');
+        const c = document.getElementById('c');
+        const d = document.getElementById('d');
+        const aCont = document.getElementById('aCont');
+        const bCont = document.getElementById('bCont');
+        const cCont = document.getElementById('cCont');
+        const dCont = document.getElementById('dCont');
+        const status = document.getElementById('status');
+        const score = document.getElementById('score');
+        const retry = document.getElementById('retry');
+        const next = document.getElementById('continue');
+        const end = document.getElementById('end');
+        const endPage = document.getElementById('endPage');
+        const modalWindow = document.getElementById('window');
+        const infoBtn = document.getElementById('info');
+        const infoBox = document.getElementById('infoBox');
+        const closeBtn = document.getElementById('closeBtn');
+
+        async function fetchQ() {
+            const url = 'https://opentdb.com/api.php?amount=10&category=18&difficulty=easy&type=multiple';
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('error');
+                }
+                const questions = await response.json();
+                return questions.results;
+            } catch (error) {
+                console.error('Error fetching trivia questions:', error);
+                updatestatus()
+            }
+        }
+    
+        let points = 0;
+        let questNo = 1;
+    
+        class qNode {
+            constructor(question, options, answer) {
+                this.question = question;
+                this.options = options;
+                this.answer = answer;
+                this.next = null; // Pointer to the next node
+                this.prev = null; // Pointer to the previous node
+            }
+        }
+    
+        class qlist {
+            constructor() {
+                this.head = null;
+                this.tail = null;
+                this.curr = null;
+            }
+    
+            addQ(question, options, answer) {
+                const newQ = new qNode(question, options, answer);
+                if (!this.head) {
+                    this.head = newQ;
+                    this.tail = newQ; // Set both head and tail to the first node
+                    this.curr = newQ; // Current node is also the first node
+                } else {
+                    this.tail.next = newQ; // Link the last node to the new node
+                    newQ.prev = this.tail; // Link the new node back to the last node
+                    this.tail = newQ; // Move the tail pointer to the new node
+                }
+            }
+        }
+    
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+    
+        function callQ() {
+            const quiz = new qlist();
+            let i = 1;
+    
+            fetchQ().then(questions => {
+                questions.forEach(q => {
+                    quiz.addQ(q.question, shuffle(q.incorrect_answers.concat(q.correct_answer)), q.correct_answer);
+                    console.log('Question ' + i + ' successfully added');
+                    i++;
+                });
+                console.log('Fetched successfully');
+                displayQ(quiz);
+            }).catch(error => {
+                console.error('Error in callQuestions:', error);
+                updatestatus()
+            });
+        }
+    
+        function displayQ(quiz) {
+            modalWindow.classList.remove("window-block");
+            modalWindow.classList.add("window");
+
+            [a, b, c, d].forEach(button => {
+                button.parentElement.classList.remove('success', 'wrong'); // Remove the 'success' class from each parent
+            });
+
+            if (quiz.curr) {
+                const question = quiz.curr;
+                const answer = question.answer;
+                const options = question.options;
+    
+                q.textContent = questNo + '. ' + question.question;
+                a.textContent = options[0];
+                b.textContent = options[1];
+                c.textContent = options[2];
+                d.textContent = options[3];
+    
+                // Attach click handlers
+                [a, b, c, d].forEach(button => {
+                    button.onclick = () => handleButton(button, answer, quiz);
+                });
+
+                questNo++;
+
+                displayScore();
+            } else {
+                endGame();
+            }
+        }
+    
+        function handleButton(button, answer, quiz) {
+            // Show modal (window)
+            modalWindow.classList.remove("window");
+            modalWindow.classList.add("window-block");
+
+            // Handle correct or incorrect answers
+            if (button.textContent === answer) {
+                console.log('Correct answer');
+                points += 10;
+            } else {
+                console.log('Incorrect answer');
+                const selected = button;
+                selected.parentElement.classList.add('wrong'); // Mark the selected option as wrong
+            }
+        
+            const correctButton = findCorrectAns(answer);
+
+            if (correctButton) {
+                correctButton.parentElement.classList.add('success'); // Add class to the parent of the correct button
+            }
+        
+            wait(function() {
+                // Move to the next question
+                if (quiz.curr && quiz.curr.next) {
+                    quiz.curr = quiz.curr.next;
+                    displayQ(quiz);
+                } else {
+                    endGame();
+                }
+            });
+        }
+    
+        function endGame() {
+            modalWindow.classList.remove("window");
+            modalWindow.classList.add("window-end");
+                
+            displayScore();
+                
+            if (points >= 70) {
+                endPage.classList.add('success');
+                console.log(`YOU WIN! Your final score is ${points}`);
+                end.textContent = `YOU WIN! Your final score is ${points}`;
+                next.classList.remove('blocked'); // Make the "Next" link clickable when the player wins
+            } else {
+                endPage.classList.add('wrong');
+                console.log(`YOU LOSE. Your final score is ${points}`);
+                end.textContent = `YOU LOSE. Your final score is ${points}`;
+                next.classList.add('blocked'); // Apply the blocked styles when the player loses
+                next.setAttribute('href', '#'); // Prevent navigation by setting href to '#'
+            }
+        
+            endPage.classList.remove("endPage");
+            endPage.classList.add("endPage-active");
+        }
+
+    
+        function startGame() {
+            callQ();
+        }
+
+        function displayScore(){
+            score.textContent = `SCORE: ${points}`;
+        }
+
+        function updatestatus(){
+            status.textContent = 'something went wrong, sorry :(';
+        }
+
+        function wait(callback) {
+            setTimeout(callback, 1000); // Delay the callback for 6 seconds
+        }
+
+        function findCorrectAns(answer) {
+            const answerButtons = [a, b, c, d]; // Use the button elements directly
+            let correct = null; // Initialize with null
+            answerButtons.forEach(button => {
+                if (button.textContent === answer) {
+                    correct = button; // Assign the correct button
+                }
+            });
+            return correct; // Return the correct button
+        }
+
+        retry.addEventListener('click', function(){
+            location.reload();
+        });
+
+        infoBtn.addEventListener('click', function() {
+            infoBox.classList.toggle('show');
+        });
+
+        startGame();
+    </script>        
+</body>
+</html>
